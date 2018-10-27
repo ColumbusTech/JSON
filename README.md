@@ -69,7 +69,7 @@ printf("%s\n", j["Object"]["String"].GetString()); //Second string
 #### You have this code
 
 ```c++
-JSON j;
+ColumbusJSON::JSON j;
 
 j["Int"] = 2;
 j["Bool"] = true;
