@@ -18,8 +18,8 @@ using namespace ColumbusJSON;
 ### To load JSON file in your program
 
 #### So, if you have JSON like this
-json
-```
+
+```json
 {
 	"Int": 123,
 	"Float": 3.141592,
@@ -36,8 +36,7 @@ json
 
 #### You may load it like this
 
-c++
-```
+```c++
 std::ifstream ifs("test.json");
 std::string str = std::string(std::istreambuf_iterator<char>(ifs),
                               std::istreambuf_iterator<char>());
