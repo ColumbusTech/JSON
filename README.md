@@ -4,8 +4,7 @@ Simple and fast library parsing JSON
 ## It is small
 You need only to include **json.h** in your project and you may use it!
 
-c++
-```
+```c++
 #include "json.h"
 
 using namespace ColumbusJSON;
@@ -23,13 +22,13 @@ using namespace ColumbusJSON;
 {
 	"Int": 123,
 	"Float": 3.141592,
-	"String": "Fuck you",
+	"String": "First string",
 	"ArrayOfInts": [1, 2, 3, 4, 5],
 	"Object":
 	{
 		"Int": 321,
 		"Float": 2.7,
-		"String": "Oh shit im sorry"
+		"String": "Second string"
 	}
 }
 ```
