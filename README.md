@@ -81,6 +81,10 @@ j["Array"][1] = 2;
 j["Array"][2] = 3;
 j["Array"][3] = 4;
 j["Array"][4] = 5;
+
+//You may use initializer list for arrays and it should be look like
+//j["Array"] = {1, 2, 3, 4, 5};
+
 j["Object"]["Int"] = 321;
 
 j.Save("save.json");
