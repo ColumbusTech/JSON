@@ -64,4 +64,42 @@ printf("%i\n", j["Object"]["Int"].GetInt());       //321
 printf("%f\n", j["Object"]["Float"].GetFloat());   //2.7
 printf("%s\n", j["Object"]["String"].GetString()); //Second string
 ```
+### To save JSON file from your program
+
+#### You have this code
+
+```c++
+JSON j;
+
+j["Int"] = 2;
+j["Bool"] = true;
+j["Null"] = nullptr;
+j["Float"] = 123.321f;
+j["String"] = "String";
+j["Array"][0] = 1;
+j["Array"][1] = 2;
+j["Array"][2] = 3;
+j["Array"][3] = 4;
+j["Array"][4] = 5;
+j["Object"]["Int"] = 321;
+
+j.Save("save.json");
+```
+
+#### And it should be saved like this
+
+```json
+{
+	"Array": [1, 2, 3, 4, 5],
+	"Bool": true,
+	"Float": 123.320999,
+	"Int": 2,
+	"Null": null,
+	"Object":
+	{
+		"Int": 321
+	},
+	"String": "String"
+}
+```
 
