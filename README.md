@@ -44,6 +44,12 @@ std::string str = std::string(std::istreambuf_iterator<char>(ifs),
 
 ColumbusJSON::JSON j;
 j.Parse(str.c_str());
+
+//Or you can use
+//ColumbusJSON::JSON j;
+//std::ifstream ifs("test.json");
+//ifs >> j;
+
 //JSON parsed and ready to use
 
 //Main content
@@ -88,6 +94,10 @@ j["Array"][4] = 5;
 j["Object"]["Int"] = 321;
 
 j.Save("save.json");
+
+//You may also save it like this
+//std::ofstream ofs("save.json");
+//ofs << j << std::endl;
 ```
 
 #### And it should be saved like this
