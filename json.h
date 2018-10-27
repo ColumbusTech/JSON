@@ -4,6 +4,7 @@
 #include <fstream>
 #include <map>
 #include <vector>
+#include <initializer_list>
 #include <cstring>
 #include <cstdint>
 #include <cmath>
@@ -88,6 +89,8 @@ namespace ColumbusJSON
 	public:
 		Value() : ValueType(Type::Object) {}
 		Value(const std::basic_string<char>& Str) : StringValue(Str), BoolValue(false), IntValue(0), FloatValue(0.0f), ValueType(Type::String) {}
+		Value(const std::initializer_list<Value>& Arr) : Array(Arr.begin(), Arr.end()), ValueType(Type::Array) {}
+		Value(const std::vector<Value>& Arr) : Array(Arr), ValueType(Type::Array) {}
 		Value(bool Bool) : StringValue(""), BoolValue(Bool), IntValue(0), FloatValue(0.0f), ValueType(Type::Bool) {}
 		Value(std::nullptr_t Null) : StringValue(""), BoolValue(false), IntValue(0), FloatValue(0.0f), ValueType(Type::Null) {}
 		Value(int Int) : StringValue(""), BoolValue(false), IntValue(Int), FloatValue(0.0f), ValueType(Type::Int) {}
@@ -111,6 +114,20 @@ namespace ColumbusJSON
 		{
 			StringValue = Str;
 			ValueType = Type::String;
+			return *this;
+		}
+
+		Value& operator=(const std::initializer_list<Value>& Arr)
+		{
+			Array.assign(Arr.begin(), Arr.end());
+			ValueType = Type::Array;
+			return *this;
+		}
+
+		Value& operator=(const std::vector<Value>& Arr)
+		{
+			Array = Arr;
+			ValueType = Type::Array;
 			return *this;
 		}
 
