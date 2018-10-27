@@ -73,7 +73,7 @@ namespace ColumbusJSON
 			Object,
 			Array
 		};
-	private:
+	protected:
 		std::basic_string<char> StringValue;
 		bool BoolValue;
 		int IntValue;
@@ -566,7 +566,7 @@ namespace ColumbusJSON
 
 	class JSON
 	{
-	private:
+	protected:
 		Value Root;
 	public:
 		bool Parse(const char* String)
@@ -597,6 +597,20 @@ namespace ColumbusJSON
 		Value& operator[](int Index)
 		{
 			return Root[Index];
+		}
+
+		friend std::istream& operator>>(std::istream& Stream, JSON& J)
+		{
+			std::string str = std::string(std::istreambuf_iterator<char>(Stream), std::istreambuf_iterator<char>());
+			J.Parse(str.c_str());
+
+			return Stream;
+		}
+
+		friend std::ostream& operator<<(std::ostream& Stream, const JSON& J)
+		{
+			Stream << J.Root;
+			return Stream;
 		}
 	};
 }
