@@ -62,7 +62,7 @@ printf("\n");
 
 //And sub-object content
 printf("%i\n", j["Object"]["Int"].GetInt());       //321
-printf("%f\n", j["Object"]["float"].GetFloat());   //2.7
+printf("%f\n", j["Object"]["Float"].GetFloat());   //2.7
 printf("%s\n", j["Object"]["String"].GetString()); //Second string
 ```
 
