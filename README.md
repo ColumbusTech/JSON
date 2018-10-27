@@ -49,21 +49,21 @@ j.Parse(str.c_str());
 //JSON parsed and ready to use
 
 //Main content
-printf("%i\n", j["Int"].GetInt());
-printf("%f\n", j["Float"].GetFloat());
-printf("%s\n", j["String"].GetString());
+printf("%i\n", j["Int"].GetInt());       //123
+printf("%f\n", j["Float"].GetFloat());   //3.141592
+printf("%s\n", j["String"].GetString()); //First string
 
 
 //Array of five ints
 for (int i = 0; i < j["ArrayOfInts"].ArraySize(); i++)
 {
-	printf("%i ", j["ArrayOfInts"][i].GetInt());
+	printf("%i ", j["ArrayOfInts"][i].GetInt()); //1..5
 }
 printf("\n");
 
 //And sub-object content
-printf("%i\n", j["Object"]["Int"].GetInt());
-printf("%f\n", j["Object"]["float"].GetFloat());
-printf("%s\n", j["Object"]["String"].GetString());
+printf("%i\n", j["Object"]["Int"].GetInt());       //321
+printf("%f\n", j["Object"]["float"].GetFloat());   //2.7
+printf("%s\n", j["Object"]["String"].GetString()); //Second string
 ```
 
