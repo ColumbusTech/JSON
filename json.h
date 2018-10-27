@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <fstream>
 #include <map>
 #include <vector>
 #include <cstring>
@@ -82,8 +83,63 @@ namespace ColumbusJSON
 
 		Type ValueType;
 	public:
-		Value() {}
-		Value(const std::basic_string<char>& Str) : StringValue(Str), BoolValue(false), IntValue(0), FloatValue(0.0f) {}
+		typedef std::map<std::basic_string<char>, Value>::const_iterator ValueConstIterator;
+		typedef std::vector<Value>::const_iterator ArrayConstIterator;
+	public:
+		Value() : ValueType(Type::Object) {}
+		Value(const std::basic_string<char>& Str) : StringValue(Str), BoolValue(false), IntValue(0), FloatValue(0.0f), ValueType(Type::String) {}
+		Value(bool Bool) : StringValue(""), BoolValue(Bool), IntValue(0), FloatValue(0.0f), ValueType(Type::Bool) {}
+		Value(std::nullptr_t Null) : StringValue(""), BoolValue(false), IntValue(0), FloatValue(0.0f), ValueType(Type::Null) {}
+		Value(int Int) : StringValue(""), BoolValue(false), IntValue(Int), FloatValue(0.0f), ValueType(Type::Int) {}
+		Value(float Float) : StringValue(""), BoolValue(false), IntValue(0), FloatValue(Float), ValueType(Type::Float) {}
+
+		Value& operator=(char Ch)
+		{
+			StringValue = Ch;
+			ValueType = Type::String;
+			return *this;
+		}
+
+		Value& operator=(const char* Str)
+		{
+			StringValue = Str;
+			ValueType = Type::String;
+			return *this;
+		}
+
+		Value& operator=(const std::basic_string<char>& Str)
+		{
+			StringValue = Str;
+			ValueType = Type::String;
+			return *this;
+		}
+
+		Value& operator=(bool Bool)
+		{
+			BoolValue = Bool;
+			ValueType = Type::Bool;
+			return *this;
+		}
+
+		Value& operator=(std::nullptr_t Null)
+		{
+			ValueType = Type::Null;
+			return *this;
+		}
+
+		Value& operator=(int Int)
+		{
+			IntValue = Int;
+			ValueType = Type::Int;
+			return *this;
+		}
+
+		Value& operator=(float Float)
+		{
+			FloatValue = Float;
+			ValueType = Type::Float;
+			return *this;
+		}
 
 		bool Parse(const char** Str)
 		{
@@ -378,14 +434,114 @@ namespace ColumbusJSON
 			return Array.size();
 		}
 
+		ValueConstIterator ValueBegin() const
+		{
+			return Values.begin();
+		}
+
+		ValueConstIterator ValueEnd() const
+		{
+			return Values.end();
+		}
+
+		ArrayConstIterator ArrayBegin() const
+		{
+			return Array.begin();
+		}
+
+		ArrayConstIterator ArrayEnd() const
+		{
+			return Array.end();
+		}
+
 		Value& operator[](const std::basic_string<char>& Key)
 		{
+			ValueType = Type::Object;
+			Array.clear();
+			StringValue.clear();
+
 			return Values[Key];
 		}
 
 		Value& operator[](int Index)
 		{
+			ValueType = Type::Array;
+			Values.clear();
+			StringValue.clear();
+
+			if (Index >= Array.size())
+			{
+				Array.push_back({});
+			}
+
 			return Array[Index];
+		}
+
+		friend std::ostream& operator<<(std::ostream& Stream, const Value& Val)
+		{
+			static int Iteration = 0;
+
+			auto Tabs = [&]()->void { for(int i = 0; i < Iteration; i++) Stream << '\t'; };
+
+			std::string Str;
+
+			switch (Val.GetType())
+			{
+				case Value::Type::String: Str = std::string("\"") + Val.GetString() + std::string("\""); break;
+				case Value::Type::Bool:   Str = Val.GetBool() ? "true" : "false"; break;
+				case Value::Type::Null:   Str = "null"; break;
+				case Value::Type::Int:    Str = std::to_string(Val.GetInt()); break;
+				case Value::Type::Float:  Str = std::to_string(Val.GetFloat()); break;
+			}
+
+			if (Val.GetType() == Value::Type::Object)
+			{
+				Tabs();
+				Stream << '{' << std::endl;
+
+				Iteration++;
+				for (auto it = Val.ValueBegin(); it != Val.ValueEnd(); ++it)
+				{
+					Tabs();
+
+					if (it->second.GetType() != Value::Type::Object)
+					{
+						Stream << '"' << it->first << '"' << ": " << it->second;
+					}
+					else
+					{
+						Stream << '"' << it->first << '"' << ':' << std::endl << it->second;
+					}
+
+					if (++it != Val.ValueEnd()) Stream << ','; --it;
+					Stream << std::endl;
+				}
+				Iteration--;
+
+				Tabs();
+				Stream << '}';
+			}
+			else if (Val.GetType() == Value::Type::Array)
+			{
+				Stream << '[';
+
+				Iteration++;
+				for (auto it = Val.ArrayBegin(); it != Val.ArrayEnd(); ++it)
+				{
+					if (it->GetType() == Value::Type::Object) Stream << std::endl;
+					Stream << *it;
+					if (++it != Val.ArrayEnd()) Stream << ", "; --it;
+				}
+				Iteration--;
+				
+				Stream << ']';
+			}
+			else
+			{
+				Stream << Str;
+			}
+
+			return Stream;
 		}
 
 		~Value() {}
@@ -401,6 +557,13 @@ namespace ColumbusJSON
 			if (!SkipWhitespace(&String)) return false;
 			if (!Root.Parse(&String)) return false;
 
+			return true;
+		}
+
+		bool Save(const char* Filename)
+		{
+			std::ofstream ofs(Filename);
+			ofs << Root << std::endl;
 			return true;
 		}
 
