@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include <string>
 #include <fstream>
 #include <map>
@@ -13,7 +14,7 @@ namespace
 {
 	bool SkipWhitespace(const char** String)
 	{
-		while (**String != 0 && (**String == ' ' || **String == '\n' || **String == '\r' || **String == '\t'))
+		while (std::isspace(**String))
 		{
 			(*String)++;
 		}
@@ -30,28 +31,44 @@ namespace
 		}
 	}
 
-	double ParseInt(const char** String)
+	double ParseInt(const char** String, bool& Err)
 	{
 		double Number = 0.0;
 
-		while (**String != 0 && **String >= '0' && **String <= '9')
+		Err = false;
+
+		while (**String != 0 && std::isdigit(**String))
 		{
 			Number = Number * 10 + (*(*String)++ - '0');
+
+			if (!std::isdigit(**String) && !std::isspace(**String) && **String != '.' && **String != ',' && **String != 'e' && **String != 'E')
+			{
+				Err= true;
+				return 0.0;
+			}
 		}
 
 		return Number;
 	}
 
-	double ParseDecimal(const char** String)
+	double ParseDecimal(const char** String, bool& Err)
 	{
 		double Number = 0.0;
 		double Factor = 0.1;
 
-		while (**String != 0 && **String >= '0' && **String <= '9')
+		Err = false;
+
+		while (**String != 0 && std::isdigit(**String))
 		{
 			int Digit = (*(*String)++ - '0');
 			Number = Number + Digit * Factor;
 			Factor *= 0.1;
+
+			if (!std::isdigit(**String) && !std::isspace(**String) && **String != '.' && **String != ',' && **String != 'e' && **String != 'E')
+			{
+				Err= true;
+				return 0.0;
+			}
 		}
 
 		return Number;
@@ -60,6 +77,43 @@ namespace
 
 namespace ColumbusJSON
 {
+	enum class Error
+	{
+		None,
+		NoFile,
+		EmptyFile,
+		InvalidString,
+		InvalidNumber,
+		MissedColon,
+		MissedComma,
+		MissedQuot,
+		MissedBracket,
+		MissedBrace,
+		EndOfFile,
+		Undefined
+	};
+
+	const char* ErrorToString(Error Err)
+	{
+		switch (Err)
+		{
+			case Error::None:          return "None";          break;
+			case Error::NoFile:        return "NoFile";        break;
+			case Error::EmptyFile:     return "EmptyFile";     break;
+			case Error::InvalidString: return "InvalidString"; break;
+			case Error::InvalidNumber: return "InvalidNumber"; break;
+			case Error::MissedColon:   return "MissedColon";   break;
+			case Error::MissedComma:   return "MissedComma";   break;
+			case Error::MissedQuot:    return "MissedQuot";    break;
+			case Error::MissedBracket: return "MissedBracket"; break;
+			case Error::MissedBrace:   return "MissedBrace";   break;
+			case Error::EndOfFile:     return "EndOfFile";     break;
+			case Error::Undefined:     return "Undefined";     break;
+		}
+
+		return "";
+	}
+
 	class Value
 	{
 	public:
@@ -158,17 +212,17 @@ namespace ColumbusJSON
 			return *this;
 		}
 
-		bool Parse(const char** Str)
+		Error Parse(const char** Str)
 		{
 			//Is a string
 			if (**Str == '"')
 			{
 				(*Str)++;
 				ExtractString(Str, StringValue);
-				if (**Str != '"') return false;
+				if (**Str != '"') return Error::InvalidString;
 				(*Str)++;
 				ValueType = Type::String;
-				return true;
+				return Error::None;
 			}
 
 			//Is a bool
@@ -177,7 +231,7 @@ namespace ColumbusJSON
 				BoolValue = memcmp(*Str, "true", 4) == 0;
 				(*Str) += BoolValue ? 4 : 5;
 				ValueType = Type::Bool;
-				return true;
+				return Error::None;
 			}
 
 			//Is a null
@@ -185,7 +239,7 @@ namespace ColumbusJSON
 			{
 				(*Str) += 4;
 				ValueType = Type::Null;
-				return true;
+				return Error::None;
 			}
 
 			//Is a number
@@ -194,7 +248,9 @@ namespace ColumbusJSON
 				bool Negative = **Str == '-';
 				if (Negative) (*Str)++;
 
-				double Number = ParseInt(Str);
+				bool Err;
+				double Number = ParseInt(Str, Err);
+				if (Err) return Error::InvalidNumber;
 
 				//Decimal
 				if (**Str == '.')
@@ -203,10 +259,11 @@ namespace ColumbusJSON
 
 					if (!(**Str >= '0' && **Str <= '9'))
 					{
-						return false;
+						return Error::InvalidNumber;
 					}
 
-					Number += ParseDecimal(Str);
+					Number += ParseDecimal(Str, Err);
+					if (Err) return Error::InvalidNumber;
 				}
 
 				//Exponent
@@ -219,10 +276,11 @@ namespace ColumbusJSON
 
 					if (!(**Str >= '0' && **Str <= '9'))
 					{
-						return false;
+						return Error::InvalidNumber;
 					}
 
-					int Exponent = ParseInt(Str);
+					int Exponent = ParseInt(Str, Err);
+					if (Err) return Error::InvalidNumber;
 					Exponent *= Negative ? -1 : 1;
 					Number *= pow(10.0, Exponent);
 				}
@@ -234,16 +292,16 @@ namespace ColumbusJSON
 				{
 					ValueType = Type::Int;
 					IntValue = Number;
-					return true;
+					return Error::None;
 				}
 				else
 				{
 					ValueType = Type::Float;
 					FloatValue = Number;
-					return true;
+					return Error::None;
 				}
 
-				return true;
+				return Error::None;
 			}
 
 			//Is an array
@@ -253,20 +311,21 @@ namespace ColumbusJSON
 
 				while (**Str != 0)
 				{
-					if (!SkipWhitespace(Str)) return false;
+					if (!SkipWhitespace(Str)) return Error::EndOfFile;
 
 					//An empty array
 					if (Array.size() == 0 && **Str == ']')
 					{
 						(*Str)++;
-						return true;
+						return Error::None;
 					}
 
 					Value Val;
-					if (!Val.Parse(Str))
+					Error Err = Val.Parse(Str);
+					if (Err != Error::None)
 					{
 						Array.clear();
-						return false;
+						return Err;
 					}
 
 					Array.push_back(Val);
@@ -274,20 +333,25 @@ namespace ColumbusJSON
 					if (!SkipWhitespace(Str))
 					{
 						Array.clear();
-						return false;
+						return Error::EndOfFile;
 					}
 
 					//End of the array?
 					if (**Str == ']')
 					{
 						(*Str)++;
-						return true;
+						return Error::None;
+					}
+					else
+					{
+						Array.clear();
+						return Error::MissedBracket;
 					}
 
 					if (**Str != ',')
 					{
 						Array.clear();
-						return false;
+						return Error::MissedComma;
 					}
 
 					(*Str)++;
@@ -304,7 +368,7 @@ namespace ColumbusJSON
 					if (!SkipWhitespace(Str))
 					{
 						Values.clear();
-						return false;
+						return Error::EndOfFile;
 					}
 
 					//Empty object
@@ -312,13 +376,13 @@ namespace ColumbusJSON
 					{
 						(*Str)++;
 						ValueType = Type::Object;
-						return true;
+						return Error::None;
 					}
 
 					if (!SkipWhitespace(Str))
 					{
 						Values.clear();
-						return false;
+						return Error::None;
 					}
 
 					std::basic_string<char> Name;
@@ -330,45 +394,46 @@ namespace ColumbusJSON
 						if (**Str != '"')
 						{
 							Values.clear();
-							return false;
+							return Error::MissedQuot;
 						}
 
 						(*Str)++;
-						if (!SkipWhitespace(Str)) { Values.clear(); return false; }
+						if (!SkipWhitespace(Str)) { Values.clear(); return Error::EndOfFile; }
 
 						if (**Str == ':')
 						{
 							(*Str)++;
 							Value Val;
-							if (!SkipWhitespace(Str)) { Values.clear(); return false; }
-							if (!Val.Parse(Str))      { Values.clear(); return false; }
+							if (!SkipWhitespace(Str)) { Values.clear(); return Error::EndOfFile; }
+							Error Err = Val.Parse(Str);
+							if (Err != Error::None)   { Values.clear(); return Err; }
 							Values[Name] = Val;
-						}
+						} else return Error::MissedColon;
 					}
 
 					if (!SkipWhitespace(Str))
 					{
 						Values.clear();
-						return false;
+						return Error::EndOfFile;
 					}
 
 					if (**Str == '}')
 					{
 						(*Str++);
-						return true;
+						return Error::None;
 					}
 
 					if (**Str != ',')
 					{
 						Values.clear();
-						return false;
+						return Error::MissedComma;
 					}
 
 					(*Str)++;
 				}
 			}
 
-			return false;
+			return Error::Undefined;
 		}
 
 		void SetString(const std::basic_string<char>& Str)
@@ -569,15 +634,30 @@ namespace ColumbusJSON
 	protected:
 		Value Root;
 	public:
-		bool Parse(const char* String)
+		Error Parse(const std::basic_string<char>& String)
 		{
-			if (!SkipWhitespace(&String)) return false;
-			if (!Root.Parse(&String)) return false;
+			if (String.empty()) return Error::EmptyFile;
+			if (std::all_of(String.begin(), String.end(), [](char c)->bool{return std::isspace(c);})) return Error::EmptyFile;
 
-			return true;
+			const char* Str = String.c_str();
+
+			if (!SkipWhitespace(&Str)) return Error::EndOfFile;
+
+			return Root.Parse(&Str);
 		}
 
-		bool Save(const char* Filename)
+		Error Load(const std::basic_string<char>& Filename)
+		{
+			std::ifstream ifs(Filename.c_str());
+			if (!ifs.is_open()) return Error::NoFile;
+
+			std::string str = std::string(std::istreambuf_iterator<char>(ifs), std::istreambuf_iterator<char>());
+			ifs.close();
+
+			return Parse(str);
+		}
+
+		bool Save(const std::basic_string<char>& Filename)
 		{
 			std::ofstream ofs(Filename);
 			ofs << Root << std::endl;
@@ -602,7 +682,12 @@ namespace ColumbusJSON
 		friend std::istream& operator>>(std::istream& Stream, JSON& J)
 		{
 			std::string str = std::string(std::istreambuf_iterator<char>(Stream), std::istreambuf_iterator<char>());
-			J.Parse(str.c_str());
+			Error Err = J.Parse(str.c_str());
+
+			if (Err != Error::None)
+			{
+				throw Err;
+			}
 
 			return Stream;
 		}
