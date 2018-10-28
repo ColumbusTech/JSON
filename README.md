@@ -14,7 +14,44 @@ using namespace ColumbusJSON;
 
 ## Using
 
-### To load JSON file in your program
+### Loading
+
+#### Simple loading
+
+```c++
+ColumbusJSON::JSON j;
+
+auto Err = j.Load("test.json");
+```
+
+#### Loading with file string
+
+```c++
+ColumbusJSON::JSON j;
+
+std::ifstream ifs("test.json");
+std::string string = std::string(std::istreambuf_iterator<char>(ifs),
+                                 std::istreambuf_iterator<char>());
+ifs.close();
+
+auto Err = j.Parse(str);
+```
+
+#### Loading with stream
+
+```c++
+ColumbusJSON::JSON j;
+
+std::ifstream ifs("test.json");
+
+try
+{
+	ifs >> j;
+} catch (ColumbusJSON::Error Err)
+{
+	std::cout << ColumbusJSON::ErrorToString(Err) << std::endl;
+}
+```
 
 #### So, if you have JSON like this
 
@@ -36,19 +73,8 @@ using namespace ColumbusJSON;
 #### You may load it like this
 
 ```c++
-std::ifstream ifs("test.json");
-std::string str = std::string(std::istreambuf_iterator<char>(ifs),
-                              std::istreambuf_iterator<char>());
-
-//File loaded
-
 ColumbusJSON::JSON j;
-j.Parse(str.c_str());
-
-//Or you can use
-//ColumbusJSON::JSON j;
-//std::ifstream ifs("test.json");
-//ifs >> j;
+auto Err = j.Load("test.json");
 
 //JSON parsed and ready to use
 
@@ -70,7 +96,21 @@ printf("%i\n", j["Object"]["Int"].GetInt());       //321
 printf("%f\n", j["Object"]["Float"].GetFloat());   //2.7
 printf("%s\n", j["Object"]["String"].GetString()); //Second string
 ```
-### To save JSON file from your program
+### Saving
+
+#### Simple saving
+
+```c++
+j.Save("save.json");
+```
+
+#### Saving with stream
+
+```c++
+std::ofstream ofs("save.json");
+
+ofs << j << std::endl;
+```
 
 #### You have this code
 
