@@ -10,6 +10,11 @@
 #include <cstdint>
 #include <cmath>
 
+/*!
+* @file json.h
+* @brief All functional of library.
+*/
+
 namespace
 {
 	bool SkipWhitespace(const char** String)
@@ -77,12 +82,15 @@ namespace
 
 namespace ColumbusJSON
 {
+	/**
+	* @brief JSON parsing error code.
+	*/
 	enum class Error
 	{
 		None,
 		NoFile,
 		EmptyFile,
-		InvalidString,
+		InvalidString, 
 		InvalidNumber,
 		MissedColon,
 		MissedComma,
@@ -93,6 +101,11 @@ namespace ColumbusJSON
 		Undefined
 	};
 
+	/**
+	* @brief Convert error code into C-string.
+	* @param Err Error code.
+	* @return Error string.
+	*/
 	const char* ErrorToString(Error Err)
 	{
 		switch (Err)
@@ -114,9 +127,13 @@ namespace ColumbusJSON
 		return "";
 	}
 
+	/**
+	* Class containing tree of values.
+	*/
 	class Value
 	{
 	public:
+		/** @brief Type of value. */
 		enum class Type
 		{
 			String,
@@ -211,7 +228,10 @@ namespace ColumbusJSON
 			ValueType = Type::Float;
 			return *this;
 		}
-
+		/**
+		* @brief Recursive method. Parses JSON file.
+		* @param Str pointer on C-string contains JSON file.
+		*/
 		Error Parse(const char** Str)
 		{
 			//Is a string
@@ -436,9 +456,59 @@ namespace ColumbusJSON
 			return Error::Undefined;
 		}
 
+		/**
+		* @brief Clears sub-values, string, array and sets type to empty object.
+		*/
+		void Clear()
+		{
+			StringValue.clear();
+			Array.clear();
+			Values.clear();
+			ValueType = Type::Object;
+		}
+		/**
+		* @brief Sets string value, clears each other.
+		*/
 		void SetString(const std::basic_string<char>& Str)
 		{
+			Clear();
+			ValueType = Type::String;
 			StringValue = Str;
+		}
+		/**
+		* @brief Sets bool value, clears each other.
+		*/
+		void SetBool(bool Val)
+		{
+			Clear();
+			ValueType = Type::Bool;
+			BoolValue = Val;
+		}
+		/**
+		* @brief Sets null value, clears each other.
+		*/
+		void SetNull()
+		{
+			Clear();
+			ValueType = Type::Null;
+		}
+		/**
+		* @brief Sets int value, clears each other.
+		*/
+		void SetInt(int Val)
+		{
+			Clear();
+			ValueType = Type::Int;
+			IntValue = Val;
+		}
+		/**
+		* @brief Sets float value, clears each other.
+		*/
+		void SetFloat(float Val)
+		{
+			Clear();
+			ValueType = Type::Float;
+			FloatValue = Val;
 		}
 
 		Type GetType() const
@@ -505,37 +575,55 @@ namespace ColumbusJSON
 		{
 			return Values.find(Key) != Values.end();
 		}
-
+		/**
+		* @brief Returns count of sub-values.
+		*/
 		int ChildrenCount() const
 		{
 			return Values.size();
 		}
-
+		/**
+		* @brief Returns count of array elements.
+		*/
 		int ArraySize() const
 		{
 			return Array.size();
 		}
-
+		/**
+		* @brief Returns iterator on first element of sub-values.
+		*/
 		ValueConstIterator ValueBegin() const
 		{
 			return Values.begin();
 		}
-
+		/**
+		* @brief Returns iterator on element after after the last element of sub-values.
+		*/
 		ValueConstIterator ValueEnd() const
 		{
 			return Values.end();
 		}
-
+		/**
+		* @brief Returns iterator on first element of array.
+		*/
 		ArrayConstIterator ArrayBegin() const
 		{
 			return Array.begin();
 		}
-
+		/**
+		* @brief Returns iterator on the element after the last element of sub-values.
+		*/
 		ArrayConstIterator ArrayEnd() const
 		{
 			return Array.end();
 		}
-
+		/**
+		* @brief Access to sub-value. This value automaticly becomes of **Object type**.
+		* Clears array and string values.
+		*
+		* Creates new sub-value if value named `Key` does not exist.
+		* @param Key name of sub-value.
+		*/
 		Value& operator[](const std::basic_string<char>& Key)
 		{
 			ValueType = Type::Object;
@@ -544,7 +632,13 @@ namespace ColumbusJSON
 
 			return Values[Key];
 		}
-
+		/**
+		* @brief Access to array. This value automaticly becomes of **Array type**.
+		* Clears object and string values.
+		*
+		* If Index greater than the size of array it expands the array by **only one** element and returns a reference to it.
+		* @param Index index of array element.
+		*/
 		Value& operator[](int Index)
 		{
 			ValueType = Type::Array;
@@ -628,12 +722,20 @@ namespace ColumbusJSON
 
 		~Value() {}
 	};
-
+ 
+ 	/**
+ 	* Class containing root value.
+ 	*/
 	class JSON
 	{
 	protected:
 		Value Root;
 	public:
+		/**
+		* @brief Parses JSON from string.
+		* @param String String with JSON-file.
+		* @return Error code.
+		*/
 		Error Parse(const std::basic_string<char>& String)
 		{
 			if (String.empty()) return Error::EmptyFile;
@@ -645,7 +747,11 @@ namespace ColumbusJSON
 
 			return Root.Parse(&Str);
 		}
-
+		/**
+		* @brief Loads and parses JSON.
+		* @param Filename Filename to load.
+		* @return Error code.
+		*/
 		Error Load(const std::basic_string<char>& Filename)
 		{
 			std::ifstream ifs(Filename.c_str());
@@ -656,24 +762,41 @@ namespace ColumbusJSON
 
 			return Parse(str);
 		}
-
+		/**
+		* @brief Writes JSON file.
+		* @param Filename Filename to save.
+		*/
 		bool Save(const std::basic_string<char>& Filename)
 		{
 			std::ofstream ofs(Filename);
 			ofs << Root << std::endl;
 			return true;
 		}
-
+		/**
+		* @brief Returns count of root's sub-values.
+		*/
 		int ChildrenCount() const
 		{
 			return Root.ChildrenCount();
 		}
-
+		/**
+		* @brief Access to root's sub-value. Root automaticly becomes of **Object type**.
+		* Clears array and string values.
+		*
+		* Creates new sub-value if value named `Key` does not exist.
+		* @param Key name of sub-value.
+		*/
 		Value& operator[](const std::basic_string<char>& Key)
 		{
 			return Root[Key];
 		}
-
+		/**
+		* @brief Access to root's array. Root automaticly becomes of **Array type**.
+		* Clears object and string values.
+		*
+		* If Index greater than the size of array it expands the array by **only one** element and returns a reference to it.
+		* @param Index index of array element.
+		*/
 		Value& operator[](int Index)
 		{
 			return Root[Index];
