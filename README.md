@@ -13,6 +13,11 @@ using namespace ColumbusJSON;
 
 ...
 ```
+## Documentation
+To generate detailed documentation of library use
+```
+doxygen
+```
 
 ## Using
 
