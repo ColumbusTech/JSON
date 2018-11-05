@@ -1,10 +1,12 @@
 # JSON
-Simple and fast library parsing JSON
+Simple and very fast C++ library for JSON parsing
+
+The master hosted on github: https://github.com/ColumbusTech/JSON
 
 ## It is small
 You need only to include **json.h** in your project and you may use it!
 
-```c++
+```cpp
 #include "json.h"
 
 using namespace ColumbusJSON;
@@ -14,11 +16,13 @@ using namespace ColumbusJSON;
 
 ## Using
 
+**Just include json.h in your project and use it**
+
 ### Loading
 
 #### Simple loading
 
-```c++
+```cpp
 ColumbusJSON::JSON j;
 
 auto Err = j.Load("test.json");
@@ -26,7 +30,7 @@ auto Err = j.Load("test.json");
 
 #### Loading with file string
 
-```c++
+```cpp
 ColumbusJSON::JSON j;
 
 std::ifstream ifs("test.json");
@@ -39,7 +43,7 @@ auto Err = j.Parse(str);
 
 #### Loading with stream
 
-```c++
+```cpp
 ColumbusJSON::JSON j;
 
 std::ifstream ifs("test.json");
@@ -72,7 +76,7 @@ try
 
 #### You may load it like this
 
-```c++
+```cpp
 ColumbusJSON::JSON j;
 auto Err = j.Load("test.json");
 
@@ -100,13 +104,13 @@ printf("%s\n", j["Object"]["String"].GetString()); //Second string
 
 #### Simple saving
 
-```c++
+```cpp
 j.Save("save.json");
 ```
 
 #### Saving with stream
 
-```c++
+```cpp
 std::ofstream ofs("save.json");
 
 ofs << j << std::endl;
@@ -114,7 +118,7 @@ ofs << j << std::endl;
 
 #### You have this code
 
-```c++
+```cpp
 ColumbusJSON::JSON j;
 
 j["Int"] = 2;
