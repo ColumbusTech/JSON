@@ -1,7 +1,7 @@
 # JSON
 Simple and very fast C++ library for JSON parsing
 
-The master hosted on github: https://github.com/ColumbusTech/JSON
+The master hosted on github: https://github.com/ColumbusUtrigas/JSON
 
 ## It is small
 You need only to include **json.h** in your project and you may use it!
