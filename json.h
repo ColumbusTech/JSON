@@ -40,69 +40,66 @@
 * @brief All functional of library.
 */
 
-namespace
+static bool SkipWhitespace(const char** String)
 {
-	bool SkipWhitespace(const char** String)
+	while (std::isspace(**String))
 	{
-		while (std::isspace(**String))
-		{
-			(*String)++;
-		}
-
-		return **String != 0;
+		(*String)++;
 	}
 
-	void ExtractString(const char** String, std::basic_string<char>& Out)
+	return **String != 0;
+}
+
+static void ExtractString(const char** String, std::basic_string<char>& Out)
+{
+	while (**String != '"')
 	{
-		while (**String != '"')
+		Out += **String;
+		(*String)++;
+	}
+}
+
+static double ParseInt(const char** String, bool& Err)
+{
+	double Number = 0.0;
+
+	Err = false;
+
+	while (**String != 0 && std::isdigit(**String))
+	{
+		Number = Number * 10 + (*(*String)++ - '0');
+
+		if (!std::isdigit(**String) && !std::isspace(**String) && **String != '.' && **String != ',' && **String != 'e' && **String != 'E')
 		{
-			Out += **String;
-			(*String)++;
+			Err= true;
+			return 0.0;
 		}
 	}
 
-	double ParseInt(const char** String, bool& Err)
+	return Number;
+}
+
+static double ParseDecimal(const char** String, bool& Err)
+{
+	double Number = 0.0;
+	double Factor = 0.1;
+
+	Err = false;
+
+	while (**String != 0 && std::isdigit(**String))
 	{
-		double Number = 0.0;
+		int Digit = (*(*String)++ - '0');
+		Number = Number + Digit * Factor;
+		Factor *= 0.1;
 
-		Err = false;
-
-		while (**String != 0 && std::isdigit(**String))
+		if (!std::isdigit(**String) && !std::isspace(**String) && **String != '.' && **String != ',' && **String != 'e' && **String != 'E')
 		{
-			Number = Number * 10 + (*(*String)++ - '0');
-
-			if (!std::isdigit(**String) && !std::isspace(**String) && **String != '.' && **String != ',' && **String != 'e' && **String != 'E')
-			{
-				Err= true;
-				return 0.0;
-			}
+			Err= true;
+			return 0.0;
 		}
-
-		return Number;
 	}
 
-	double ParseDecimal(const char** String, bool& Err)
-	{
-		double Number = 0.0;
-		double Factor = 0.1;
-
-		Err = false;
-
-		while (**String != 0 && std::isdigit(**String))
-		{
-			int Digit = (*(*String)++ - '0');
-			Number = Number + Digit * Factor;
-			Factor *= 0.1;
-
-			if (!std::isdigit(**String) && !std::isspace(**String) && **String != '.' && **String != ',' && **String != 'e' && **String != 'E')
-			{
-				Err= true;
-				return 0.0;
-			}
-		}
-
-		return Number;
-	}
+	return Number;
 }
 
 namespace ColumbusJSON
@@ -256,6 +253,7 @@ namespace ColumbusJSON
 		/**
 		* @brief Recursive method. Parses JSON file.
 		* @param Str pointer on C-string contains JSON file.
+		* @return Error code.
 		*/
 		Error Parse(const char** Str)
 		{
@@ -492,7 +490,8 @@ namespace ColumbusJSON
 			ValueType = Type::Object;
 		}
 		/**
-		* @brief Sets string value, clears each other.
+		* @brief Sets string value.
+		* @note Clears array and object values.
 		*/
 		void SetString(const std::basic_string<char>& Str)
 		{
@@ -501,7 +500,8 @@ namespace ColumbusJSON
 			StringValue = Str;
 		}
 		/**
-		* @brief Sets bool value, clears each other.
+		* @brief Sets bool value.
+		* @note Clears string, array and object values.
 		*/
 		void SetBool(bool Val)
 		{
@@ -511,6 +511,7 @@ namespace ColumbusJSON
 		}
 		/**
 		* @brief Sets null value, clears each other.
+		* @note Clears string, array and object values.
 		*/
 		void SetNull()
 		{
@@ -519,6 +520,7 @@ namespace ColumbusJSON
 		}
 		/**
 		* @brief Sets int value, clears each other.
+		* @note Clears string, array and object values.
 		*/
 		void SetInt(int Val)
 		{
@@ -528,6 +530,7 @@ namespace ColumbusJSON
 		}
 		/**
 		* @brief Sets float value, clears each other.
+		* @note Clears string, array and object values.
 		*/
 		void SetFloat(float Val)
 		{
@@ -643,10 +646,11 @@ namespace ColumbusJSON
 			return Array.end();
 		}
 		/**
-		* @brief Access to sub-value. This value automaticly becomes of **Object type**.
+		* @brief Access to sub-value.
+		* @details Creates new sub-value if value named `Key` does not exist.
+		* @note This value automaticly becomes of **Object type**.
 		* Clears array and string values.
 		*
-		* Creates new sub-value if value named `Key` does not exist.
 		* @param Key name of sub-value.
 		*/
 		Value& operator[](const std::basic_string<char>& Key)
@@ -658,10 +662,11 @@ namespace ColumbusJSON
 			return Values[Key];
 		}
 		/**
-		* @brief Access to array. This value automaticly becomes of **Array type**.
+		* @brief Access to array.
+		* @details If Index greater than the size of array it expands the array by **only one** element and returns a reference to it.
+		* @note This value automaticly becomes of **Array type**.
 		* Clears object and string values.
 		*
-		* If Index greater than the size of array it expands the array by **only one** element and returns a reference to it.
 		* @param Index index of array element.
 		*/
 		Value& operator[](int Index)
@@ -805,10 +810,11 @@ namespace ColumbusJSON
 			return Root.ChildrenCount();
 		}
 		/**
-		* @brief Access to root's sub-value. Root automaticly becomes of **Object type**.
+		* @brief Access to root's sub-value.
+		* @details Creates new sub-value if value named `Key` does not exist.
+		* @note Root automaticly becomes of **Object type**.
 		* Clears array and string values.
 		*
-		* Creates new sub-value if value named `Key` does not exist.
 		* @param Key name of sub-value.
 		*/
 		Value& operator[](const std::basic_string<char>& Key)
@@ -816,10 +822,11 @@ namespace ColumbusJSON
 			return Root[Key];
 		}
 		/**
-		* @brief Access to root's array. Root automaticly becomes of **Array type**.
+		* @brief Access to root's array.
+		* @details If Index greater than the size of array it expands the array by **only one** element and returns a reference to it.
+		* @note Root automaticly becomes of **Array type**.
 		* Clears object and string values.
 		*
-		* If Index greater than the size of array it expands the array by **only one** element and returns a reference to it.
 		* @param Index index of array element.
 		*/
 		Value& operator[](int Index)
