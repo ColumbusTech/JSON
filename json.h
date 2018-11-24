@@ -150,6 +150,8 @@ namespace ColumbusJSON
 		return "";
 	}
 
+	typedef std::basic_string<char> String;
+
 	/**
 	* Class containing tree of values.
 	*/
@@ -167,31 +169,45 @@ namespace ColumbusJSON
 			Object,
 			Array
 		};
+
+		typedef std::map<std::basic_string<char>, Value> Object;
+		typedef std::vector<Value> Array;
+
+		typedef Object::const_iterator ObjectConstIterator;
+		typedef Array::const_iterator  ArrayConstIterator;
+
+		typedef std::initializer_list<Value> ArrayInitializerList;
+		typedef std::initializer_list<std::pair<std::basic_string<char>, Value>> ObjectInitializerList;
+
+		typedef ObjectConstIterator obj_iter;
+		typedef ArrayConstIterator  arr_iter;
 	protected:
-		std::basic_string<char> StringValue;
+		String StringValue;
 		bool BoolValue;
 		int IntValue;
 		float FloatValue;
 
-		std::map<std::basic_string<char>, Value> Values;
-		std::vector<Value> Array;
+		Object ObjectValue;
+		Array ArrayValue;
 
 		Type ValueType;
 	public:
-		typedef std::map<std::basic_string<char>, Value>::const_iterator ValueConstIterator;
-		typedef std::vector<Value>::const_iterator ArrayConstIterator;
-	public:
-		Value() : BoolValue(false), IntValue(0), FloatValue(0.0f), ValueType(Type::Object) {}
-		Value(const std::basic_string<char>& Str) : StringValue(Str), BoolValue(false), IntValue(0), FloatValue(0.0f), ValueType(Type::String) {}
-		Value(const std::initializer_list<Value>& Arr) : Array(Arr.begin(), Arr.end()), ValueType(Type::Array) {}
-		Value(const std::vector<Value>& Arr) : Array(Arr), ValueType(Type::Array) {}
-		Value(bool Bool) : StringValue(""), BoolValue(Bool), IntValue(0), FloatValue(0.0f), ValueType(Type::Bool) {}
-		Value(std::nullptr_t Null) : StringValue(""), BoolValue(false), IntValue(0), FloatValue(0.0f), ValueType(Type::Null) {}
-		Value(int Int) : StringValue(""), BoolValue(false), IntValue(Int), FloatValue(0.0f), ValueType(Type::Int) {}
-		Value(float Float) : StringValue(""), BoolValue(false), IntValue(0), FloatValue(Float), ValueType(Type::Float) {}
+		Value() :                                           BoolValue(false), IntValue(0),   FloatValue(0.0f),  ValueType(Type::Object) {}
+		Value(const String& Str) :                          BoolValue(false), IntValue(0),   FloatValue(0.0f),  StringValue(Str), ValueType(Type::String) {}
+		Value(const Object& Obj) :                          BoolValue(false), IntValue(0),   FloatValue(0.0f),  ObjectValue(Obj), ValueType(Type::Object) {}
+		Value(const ObjectInitializerList& Obj) :           BoolValue(false), IntValue(0),   FloatValue(0.0f),  ObjectValue(Obj.begin(), Obj.end()), ValueType(Type::Object) {}
+		Value(const obj_iter& Begin, const obj_iter& End) : BoolValue(false), IntValue(0),   FloatValue(0.0f),  ObjectValue(Begin, End), ValueType(Type::Object) {}
+		Value(const Array& Arr) :                           BoolValue(false), IntValue(0),   FloatValue(0.0f),  ArrayValue(Arr), ValueType(Type::Array) {}
+		Value(const ArrayInitializerList& Arr) :            BoolValue(false), IntValue(0),   FloatValue(0.0f),  ArrayValue(Arr.begin(), Arr.end()), ValueType(Type::Array) {}
+		Value(const arr_iter& Begin, const arr_iter& End) : BoolValue(false), IntValue(0),   FloatValue(0.0f),  ArrayValue(Begin, End), ValueType(Type::Array) {}
+		Value(bool Bool) :                                  BoolValue(Bool),  IntValue(0),   FloatValue(0.0f),  ValueType(Type::Bool) {}
+		Value(std::nullptr_t Null) :                        BoolValue(false), IntValue(0),   FloatValue(0.0f),  ValueType(Type::Null) {}
+		Value(int Int) :                                    BoolValue(false), IntValue(Int), FloatValue(0.0f),  ValueType(Type::Int) {}
+		Value(float Float) :                                BoolValue(false), IntValue(0),   FloatValue(Float), ValueType(Type::Float) {}
 
 		Value& operator=(char Ch)
 		{
+			Clear();
 			StringValue = Ch;
 			ValueType = Type::String;
 			return *this;
@@ -199,34 +215,47 @@ namespace ColumbusJSON
 
 		Value& operator=(const char* Str)
 		{
+			Clear();
 			StringValue = Str;
 			ValueType = Type::String;
 			return *this;
 		}
 
-		Value& operator=(const std::basic_string<char>& Str)
+		Value& operator=(const String& Str)
 		{
+			Clear();
 			StringValue = Str;
 			ValueType = Type::String;
 			return *this;
 		}
 
-		Value& operator=(const std::initializer_list<Value>& Arr)
+		Value& operator=(const ObjectInitializerList& Obj)
 		{
-			Array.assign(Arr.begin(), Arr.end());
+			Clear();
+			ObjectValue.insert(Obj.begin(), Obj.end());
 			ValueType = Type::Array;
 			return *this;
 		}
 
-		Value& operator=(const std::vector<Value>& Arr)
+		Value& operator=(const ArrayInitializerList& Arr)
 		{
-			Array = Arr;
+			Clear();
+			ArrayValue.assign(Arr.begin(), Arr.end());
+			ValueType = Type::Array;
+			return *this;
+		}
+
+		Value& operator=(const Array& Arr)
+		{
+			Clear();
+			ArrayValue = Arr;
 			ValueType = Type::Array;
 			return *this;
 		}
 
 		Value& operator=(bool Bool)
 		{
+			Clear();
 			BoolValue = Bool;
 			ValueType = Type::Bool;
 			return *this;
@@ -234,12 +263,14 @@ namespace ColumbusJSON
 
 		Value& operator=(std::nullptr_t Null)
 		{
+			Clear();
 			ValueType = Type::Null;
 			return *this;
 		}
 
 		Value& operator=(int Int)
 		{
+			Clear();
 			IntValue = Int;
 			ValueType = Type::Int;
 			return *this;
@@ -247,6 +278,7 @@ namespace ColumbusJSON
 
 		Value& operator=(float Float)
 		{
+			Clear();
 			FloatValue = Float;
 			ValueType = Type::Float;
 			return *this;
@@ -348,60 +380,6 @@ namespace ColumbusJSON
 				return Error::None;
 			}
 
-			//Is an array
-			if (**Str == '[')
-			{
-				(*Str)++;
-
-				while (**Str != 0)
-				{
-					if (!SkipWhitespace(Str)) return Error::EndOfFile;
-
-					//An empty array
-					if (Array.size() == 0 && **Str == ']')
-					{
-						(*Str)++;
-						return Error::None;
-					}
-
-					Value Val;
-					Error Err = Val.Parse(Str);
-					if (Err != Error::None)
-					{
-						Array.clear();
-						return Err;
-					}
-
-					Array.push_back(Val);
-
-					if (!SkipWhitespace(Str))
-					{
-						Array.clear();
-						return Error::EndOfFile;
-					}
-
-					//End of the array?
-					if (**Str == ']')
-					{
-						(*Str)++;
-						return Error::None;
-					}
-					else
-					{
-						Array.clear();
-						return Error::MissedBracket;
-					}
-
-					if (**Str != ',')
-					{
-						Array.clear();
-						return Error::MissedComma;
-					}
-
-					(*Str)++;
-				}
-			}
-
 			//Is an object
 			if (**Str == '{')
 			{
@@ -411,7 +389,7 @@ namespace ColumbusJSON
 				{
 					if (!SkipWhitespace(Str))
 					{
-						Values.clear();
+						ObjectValue.clear();
 						return Error::EndOfFile;
 					}
 
@@ -425,11 +403,11 @@ namespace ColumbusJSON
 
 					if (!SkipWhitespace(Str))
 					{
-						Values.clear();
+						ObjectValue.clear();
 						return Error::None;
 					}
 
-					std::basic_string<char> Name;
+					String Name;
 
 					if (**Str == '"')
 					{
@@ -437,27 +415,27 @@ namespace ColumbusJSON
 						ExtractString(Str, Name);
 						if (**Str != '"')
 						{
-							Values.clear();
+							ObjectValue.clear();
 							return Error::MissedQuot;
 						}
 
 						(*Str)++;
-						if (!SkipWhitespace(Str)) { Values.clear(); return Error::EndOfFile; }
+						if (!SkipWhitespace(Str)) { ObjectValue.clear(); return Error::EndOfFile; }
 
 						if (**Str == ':')
 						{
 							(*Str)++;
 							Value Val;
-							if (!SkipWhitespace(Str)) { Values.clear(); return Error::EndOfFile; }
+							if (!SkipWhitespace(Str)) { ObjectValue.clear(); return Error::EndOfFile; }
 							Error Err = Val.Parse(Str);
-							if (Err != Error::None)   { Values.clear(); return Err; }
-							Values[Name] = Val;
+							if (Err != Error::None)   { ObjectValue.clear(); return Err; }
+							ObjectValue[Name] = Val;
 						} else return Error::MissedColon;
 					}
 
 					if (!SkipWhitespace(Str))
 					{
-						Values.clear();
+						ObjectValue.clear();
 						return Error::EndOfFile;
 					}
 
@@ -469,7 +447,61 @@ namespace ColumbusJSON
 
 					if (**Str != ',')
 					{
-						Values.clear();
+						ObjectValue.clear();
+						return Error::MissedComma;
+					}
+
+					(*Str)++;
+				}
+			}
+
+			//Is an array
+			if (**Str == '[')
+			{
+				(*Str)++;
+
+				while (**Str != 0)
+				{
+					if (!SkipWhitespace(Str)) return Error::EndOfFile;
+
+					//An empty array
+					if (ArrayValue.size() == 0 && **Str == ']')
+					{
+						(*Str)++;
+						return Error::None;
+					}
+
+					Value Val;
+					Error Err = Val.Parse(Str);
+					if (Err != Error::None)
+					{
+						ArrayValue.clear();
+						return Err;
+					}
+
+					ArrayValue.push_back(Val);
+
+					if (!SkipWhitespace(Str))
+					{
+						ArrayValue.clear();
+						return Error::EndOfFile;
+					}
+
+					//End of the array?
+					if (**Str == ']')
+					{
+						(*Str)++;
+						return Error::None;
+					}
+					else
+					{
+						ArrayValue.clear();
+						return Error::MissedBracket;
+					}
+
+					if (**Str != ',')
+					{
+						ArrayValue.clear();
 						return Error::MissedComma;
 					}
 
@@ -481,7 +513,7 @@ namespace ColumbusJSON
 		}
 
 		/**
-		* @brief Clears sub-values, string, array and sets type to empty object.
+		* @brief Clears object, string, array and sets type to empty object.
 		*/
 		void Clear()
 		{
@@ -489,58 +521,101 @@ namespace ColumbusJSON
 			BoolValue = false;
 			IntValue = 0;
 			FloatValue = 0.0f;
-			Array.clear();
-			Values.clear();
+			ArrayValue.clear();
+			ObjectValue.clear();
 			ValueType = Type::Object;
 		}
 		/**
-		* @brief Sets string value.
+		* @brief Sets the value to string, clears all others.
 		* @note Clears array and object values.
 		*/
-		void SetString(const std::basic_string<char>& Str)
+		void SetString(const String& Val)
 		{
-			Clear();
-			ValueType = Type::String;
-			StringValue = Str;
+			*this = Val;
 		}
 		/**
-		* @brief Sets bool value.
+		* @brief Sets the value to bool, clears all others.
 		* @note Clears string, array and object values.
 		*/
 		void SetBool(bool Val)
 		{
-			Clear();
-			ValueType = Type::Bool;
-			BoolValue = Val;
+			*this = Val;
 		}
 		/**
-		* @brief Sets null value, clears each other.
+		* @brief Sets the value to null, clears all others.
 		* @note Clears string, array and object values.
 		*/
 		void SetNull()
 		{
-			Clear();
-			ValueType = Type::Null;
+			*this = nullptr;
 		}
 		/**
-		* @brief Sets int value, clears each other.
+		* @brief Sets the value to int, clears all others.
 		* @note Clears string, array and object values.
 		*/
 		void SetInt(int Val)
 		{
-			Clear();
-			ValueType = Type::Int;
-			IntValue = Val;
+			*this = Val;
 		}
 		/**
-		* @brief Sets float value, clears each other.
+		* @brief Sets the value to float, clears all others.
 		* @note Clears string, array and object values.
 		*/
 		void SetFloat(float Val)
 		{
+			*this = Val;
+		}
+		/**
+		* @brief Sets the value of object, clears all others/
+		* @note Clears string and array values.
+		*/
+		void SetObject(const Object& Val)
+		{
+			*this = Val;
+		}
+		/**
+		* @brief Sets the value of object, clears all others/
+		* @note Clears string and array values.
+		*/
+		void SetObject(const ObjectInitializerList& Val)
+		{
+			*this = Val;
+		}
+		/**
+		* @brief Sets the value of object, clears all others/
+		* @note Clears string and array values.
+		*/
+		void SetObject(const ObjectConstIterator& Begin, const ObjectConstIterator& End)
+		{
 			Clear();
-			ValueType = Type::Float;
-			FloatValue = Val;
+			ObjectValue.insert(Begin, End);
+			ValueType = Type::Object;
+		}
+		/**
+		* @brief Sets the value to array, clears all others.
+		* @note Clears string and object values.
+		*/
+		void SetArray(const Array& Val)
+		{
+			*this = Val;
+		}
+		/**
+		* @brief Sets the value to array, clears all others.
+		* @note Clears string and object values.
+		*/
+		void SetArray(const ArrayInitializerList& Val)
+		{
+			*this = Val;
+		}
+		/**
+		* @brief Sets the value to array, clears all others.
+		* @note Clears string and object values.
+		*/
+		void SetArray(const ArrayConstIterator& Begin, const ArrayConstIterator& End)
+		{
+			Clear();
+			ArrayValue.assign(Begin, End);
+			ValueType = Type::Array;
 		}
 
 		Type GetType() const
@@ -583,130 +658,109 @@ namespace ColumbusJSON
 			return ValueType == Type::Array;
 		}
 		/**
-		* @brief Returns string value.
-		* @note If value type is not string, it is converted to a string.
+		* @breif Finds value in object values.
 		*/
-		std::string GetString() const
+		bool HasValue(const String& Key) const
 		{
-			switch (ValueType)
-			{
-			case Value::Type::String: return StringValue;                break;
-			case Value::Type::Bool:   return std::to_string(BoolValue);  break;
-			case Value::Type::Int:    return std::to_string(IntValue);   break;
-			case Value::Type::Float:  return std::to_string(FloatValue); break;
-			}
-
-			return "";
+			return ObjectValue.find(Key) != ObjectValue.end();
 		}
 		/**
-		* @brief Returns bool value.
-		* @note If value type is not bool(excluding the string), it is converted to a bool.
-		*/
-		bool GetBool() const
-		{
-			switch (ValueType)
-			{
-			case Value::Type::Bool:  return BoolValue;        break;
-			case Value::Type::Int:   return (bool)IntValue;   break;
-			case Value::Type::Float: return (bool)FloatValue; break;
-			}
-
-			return false;
-		}
-		/**
-		* @brief Returns int value.
-		* @note If value type is not int(excluding the string), it is converted to an int.
-		*/
-		int GetInt() const
-		{
-			switch (ValueType)
-			{
-			case Value::Type::Bool:  return (int)BoolValue;  break;
-			case Value::Type::Int:   return IntValue;        break;
-			case Value::Type::Float: return (int)FloatValue; break;
-			}
-
-			return 0;
-		}
-		/**
-		* @brief Returns float value.
-		* @note If value type is not float(excluding the string), it is converted to a float.
-		*/
-		float GetFloat() const
-		{
-			switch (ValueType)
-			{
-			case Value::Type::Bool:  return (float)BoolValue; break;
-			case Value::Type::Int:   return (float)IntValue;  break;
-			case Value::Type::Float: return FloatValue;       break;
-			}
-
-			return 0.0f;
-		}
-		/**
-		* @breif Finds value in sub-values.
-		*/
-		bool HasValue(const std::basic_string<char>& Key) const
-		{
-			return Values.find(Key) != Values.end();
-		}
-		/**
-		* @brief Returns count of sub-values.
+		* @brief Returns count of object values.
 		*/
 		int ChildrenCount() const
 		{
-			return Values.size();
+			return ObjectValue.size();
 		}
 		/**
 		* @brief Returns count of array elements.
 		*/
 		int ArraySize() const
 		{
-			return Array.size();
+			return ArrayValue.size();
 		}
 		/**
-		* @brief Returns iterator on first element of sub-values.
+		* @brief Returns iterator on first element of object values.
 		*/
-		ValueConstIterator ValueBegin() const
+		ObjectConstIterator ObjectBegin() const
 		{
-			return Values.begin();
+			return ObjectValue.begin();
 		}
 		/**
-		* @brief Returns iterator on element after after the last element of sub-values.
+		* @brief Returns iterator on element after after the last element of object values.
 		*/
-		ValueConstIterator ValueEnd() const
+		ObjectConstIterator ObjectEnd() const
 		{
-			return Values.end();
+			return ObjectValue.end();
 		}
 		/**
 		* @brief Returns iterator on first element of array.
 		*/
 		ArrayConstIterator ArrayBegin() const
 		{
-			return Array.begin();
+			return ArrayValue.begin();
 		}
 		/**
 		* @brief Returns iterator on the element after the last element of sub-values.
 		*/
 		ArrayConstIterator ArrayEnd() const
 		{
-			return Array.end();
+			return ArrayValue.end();
 		}
 		/**
-		* @brief Access to sub-value.
-		* @details Creates new sub-value if value named `Key` does not exist.
+		* @brief Returns generic value.
+		* @note All of this values you can obtain via cast operator.
+		*/
+		template <typename T>
+		T Get() const;
+		/**
+		* @brief Sets value to string.
+		* @note If value type is not string it is converts to string.
+		* @return The same reference as *Out*.
+		*/
+		String& Get(String& Out) const
+		{
+			switch (ValueType)
+			{
+			case Value::Type::String: Out = StringValue;                break;
+			case Value::Type::Bool:   Out = std::to_string(BoolValue);  break;
+			case Value::Type::Int:    Out = std::to_string(IntValue);   break;
+			case Value::Type::Float:  Out = std::to_string(FloatValue); break;
+			}
+
+			return Out;
+		}
+		/**
+		* @brief Sets value to generic value.
+		* @note If value type is not T it is converts to T.
+		* @return The same reference as *Out*.
+		*/
+		template <typename T>
+		typename std::enable_if<std::is_arithmetic<T>::value, T>::type& Get(T& Out) const
+		{
+			switch (ValueType)
+			{
+			case Value::Type::Bool:  Out = (T)BoolValue;  break;
+			case Value::Type::Int:   Out = (T)IntValue;   break;
+			case Value::Type::Float: Out = (T)FloatValue; break;
+			}
+
+			return Out;
+		}
+		/**
+		* @brief Access to object value.
+		* @details Creates new object value if value named `Key` does not exist.
 		* @note This value automaticly becomes of **Object type**.
 		* Clears array and string values.
 		*
-		* @param Key name of sub-value.
+		* @param Key name of object value.
 		*/
-		Value& operator[](const std::basic_string<char>& Key)
+		Value& operator[](const String& Key)
 		{
 			ValueType = Type::Object;
-			Array.clear();
+			ArrayValue.clear();
 			StringValue.clear();
 
-			return Values[Key];
+			return ObjectValue[Key];
 		}
 		/**
 		* @brief Access to array.
@@ -719,15 +773,15 @@ namespace ColumbusJSON
 		Value& operator[](int Index)
 		{
 			ValueType = Type::Array;
-			Values.clear();
+			ObjectValue.clear();
 			StringValue.clear();
 
-			if (Index >= Array.size())
+			if (Index >= ArrayValue.size())
 			{
-				Array.push_back({});
+				ArrayValue.push_back({});
 			}
 
-			return Array[Index];
+			return ArrayValue[Index];
 		}
 
 		/**
@@ -741,13 +795,13 @@ namespace ColumbusJSON
 
 			std::string Str;
 
-			switch (Val.GetType())
+			switch (Val.ValueType)
 			{
-				case Value::Type::String: Str = std::string("\"") + Val.GetString() + std::string("\""); break;
-				case Value::Type::Bool:   Str = Val.GetBool() ? "true" : "false"; break;
-				case Value::Type::Null:   Str = "null"; break;
-				case Value::Type::Int:    Str = std::to_string(Val.GetInt()); break;
-				case Value::Type::Float:  Str = std::to_string(Val.GetFloat()); break;
+			case Value::Type::String: Str = '\"' + Val.StringValue + '\"';    break;
+			case Value::Type::Bool:   Str = Val.BoolValue ? "true" : "false"; break;
+			case Value::Type::Null:   Str = "null";                           break;
+			case Value::Type::Int:    Str = std::to_string(Val.IntValue);     break;
+			case Value::Type::Float:  Str = std::to_string(Val.FloatValue);   break;
 			}
 
 			if (Val.GetType() == Value::Type::Object)
@@ -756,7 +810,7 @@ namespace ColumbusJSON
 				Stream << '{' << std::endl;
 
 				Iteration++;
-				for (auto it = Val.ValueBegin(); it != Val.ValueEnd(); ++it)
+				for (auto it = Val.ObjectBegin(); it != Val.ObjectEnd(); ++it)
 				{
 					Tabs();
 
@@ -769,7 +823,7 @@ namespace ColumbusJSON
 						Stream << '"' << it->first << '"' << ':' << std::endl << it->second;
 					}
 
-					if (++it != Val.ValueEnd()) Stream << ','; --it;
+					if (++it != Val.ObjectEnd()) Stream << ','; --it;
 					Stream << std::endl;
 				}
 				Iteration--;
@@ -811,51 +865,110 @@ namespace ColumbusJSON
 			std::is_floating_point<typename std::decay<T>::type>::value>::type>
 		{ typedef T type; };
 
-		/**
-		* @brief Sets value to string.
-		* @note If value type is not string it is converts to string.
-		* @return The same reference as *Out*.
-		*/
-		std::basic_string<char>& GetValue(std::basic_string<char>& Out) const
-		{
-			switch (ValueType)
-			{
-			case Value::Type::String: Out = StringValue;                break;
-			case Value::Type::Bool:   Out = std::to_string(BoolValue);  break;
-			case Value::Type::Int:    Out = std::to_string(IntValue);   break;
-			case Value::Type::Float:  Out = std::to_string(FloatValue); break;
-			}
-
-			return Out;
-		}
-
-		/**
-		* @brief Sets value to generic value.
-		* @note If value type is not T it is converts to T.
-		* @return The same reference as *Out*.
-		*/
 		template <typename T>
-		typename std::enable_if<std::is_arithmetic<T>::value, T>::type& GetValue(T& Out) const
+		operator T() const
 		{
-			switch (ValueType)
-			{
-			case Value::Type::Bool:  Out = (T)BoolValue;  break;
-			case Value::Type::Int:   Out = (T)IntValue;   break;
-			case Value::Type::Float: Out = (T)FloatValue; break;
-			}
-
-			return Out;
+			return Get<T>();
 		}
 
 		template <typename T, typename = typename traits<T>::type>
 		friend T& operator<<(T& Out, const Value& Val)
 		{
-			Val.GetValue(Out);
+			Val.Get(Out);
 			return Out;
 		}
 
 		~Value() {}
 	};
+
+	/**
+	* @brief Returns the string value.
+	* @note If the value type is not a string, it is conerted to a string type.
+	*/
+	template <> String Value::Get() const
+	{
+		switch (ValueType)
+		{
+		case Value::Type::String: return StringValue;                  break;
+		case Value::Type::Bool:   return BoolValue ? "true" : "false"; break;
+		case Value::Type::Null:   return "null";                       break;
+		case Value::Type::Int:    return std::to_string(IntValue);     break;
+		case Value::Type::Float:  return std::to_string(FloatValue);   break; 
+		}
+
+		return "";
+	}
+	/**
+	* @brief Returns the bool value.
+	* @note If the value type is not a bool, it is conerted to a bool type.
+	*/
+	template <> bool Value::Get() const
+	{
+		switch (ValueType)
+		{
+		case Value::Type::Bool:  return BoolValue;        break;
+		case Value::Type::Int:   return (bool)IntValue;   break;
+		case Value::Type::Float: return (bool)FloatValue; break;
+		}
+
+		return false;
+	}
+	/**
+	* @brief Returns the int value.
+	* @note If the value type is not an intool, it is conerted to an int type.
+	*/
+	template <> int Value::Get() const
+	{
+		switch (ValueType)
+		{
+		case Value::Type::Bool:  return (int)BoolValue;  break;
+		case Value::Type::Int:   return IntValue;        break;
+		case Value::Type::Float: return (int)FloatValue; break;
+		}
+
+		return 0;
+	}
+	/**
+	* @brief Returns the float value.
+	* @note If the value type is not a float, it is conerted to a float type.
+	*/
+	template <> float Value::Get() const
+	{
+		switch (ValueType)
+		{
+		case Value::Type::Bool:  return (float)BoolValue; break;
+		case Value::Type::Int:   return (float)IntValue;  break;
+		case Value::Type::Float: return FloatValue;       break;
+		}
+
+		return 0.0f;
+	}
+	/**
+	* @brief Returns the object value.
+	* @note If the value type is not an object, it is **NOT** conerted to an object type.
+	*/
+	template <> Value::Object Value::Get() const
+	{
+		if (ValueType == Value::Type::Object)
+		{
+			return ObjectValue;
+		}
+
+		return Value::Object();
+	}
+	/**
+	* @brief Returns the array value.
+	* @note If the value type is not an array, it is **NOT** conerted to an array type.
+	*/
+	template <> Value::Array Value::Get() const
+	{
+		if (ValueType == Value::Type::Array)
+		{
+			return ArrayValue;
+		}
+
+		return Value::Array();
+	}
  
  	/**
  	* Class containing root value.
@@ -870,12 +983,12 @@ namespace ColumbusJSON
 		* @param String String with JSON-file.
 		* @return Error code.
 		*/
-		Error Parse(const std::basic_string<char>& String)
+		Error Parse(const String& Text)
 		{
-			if (String.empty()) return Error::EmptyFile;
-			if (std::all_of(String.begin(), String.end(), [](char c)->bool{return std::isspace(c);})) return Error::EmptyFile;
+			if (Text.empty()) return Error::EmptyFile;
+			if (std::all_of(Text.begin(), Text.end(), [](char c)->bool{return std::isspace(c);})) return Error::EmptyFile;
 
-			const char* Str = String.c_str();
+			const char* Str = Text.c_str();
 
 			if (!SkipWhitespace(&Str)) return Error::EndOfFile;
 
@@ -886,7 +999,7 @@ namespace ColumbusJSON
 		* @param Filename Filename to load.
 		* @return Error code.
 		*/
-		Error Load(const std::basic_string<char>& Filename)
+		Error Load(const String& Filename)
 		{
 			std::ifstream ifs(Filename.c_str());
 			if (!ifs.is_open()) return Error::NoFile;
@@ -900,7 +1013,7 @@ namespace ColumbusJSON
 		* @brief Writes JSON file.
 		* @param Filename Filename to save.
 		*/
-		bool Save(const std::basic_string<char>& Filename)
+		bool Save(const String& Filename)
 		{
 			std::ofstream ofs(Filename);
 			ofs << Root << std::endl;
@@ -914,14 +1027,14 @@ namespace ColumbusJSON
 			return Root.ChildrenCount();
 		}
 		/**
-		* @brief Access to root's sub-value.
+		* @brief Access to root's object value.
 		* @details Creates new sub-value if value named `Key` does not exist.
 		* @note Root automaticly becomes of **Object type**.
 		* Clears array and string values.
 		*
 		* @param Key name of sub-value.
 		*/
-		Value& operator[](const std::basic_string<char>& Key)
+		Value& operator[](const String& Key)
 		{
 			return Root[Key];
 		}
@@ -958,13 +1071,6 @@ namespace ColumbusJSON
 		}
 	};
 }
-
-
-
-
-
-
-
 
 
 
