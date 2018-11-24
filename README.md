@@ -87,23 +87,35 @@ auto Err = j.Load("test.json");
 
 //JSON parsed and ready to use
 
+int a;
+float b;
+std::string c;
+
+a << j["Int"];    //123
+b << j["Float"];  //3.141592
+c << j["String"]; //First string
+
+j["Int"].Get(a);    //123
+j["Float"].Get(b);  //3.141592
+j["String"].Get(c); //First string
+
 //Main content
-printf("%i\n", j["Int"].GetInt());       //123
-printf("%f\n", j["Float"].GetFloat());   //3.141592
-printf("%s\n", j["String"].GetString()); //First string
+printf("%i\n", j["Int"].Get<int>());                    //123
+printf("%f\n", j["Float"].Get<float>());                //3.141592
+printf("%s\n", j["String"].Get<std::string>().c_str()); //First string
 
 
 //Array of five ints
 for (int i = 0; i < j["ArrayOfInts"].ArraySize(); i++)
 {
-	printf("%i ", j["ArrayOfInts"][i].GetInt()); //1..5
+	printf("%i ", j["ArrayOfInts"][i].Get<int>()); //1..5
 }
 printf("\n");
 
 //And sub-object content
-printf("%i\n", j["Object"]["Int"].GetInt());       //321
-printf("%f\n", j["Object"]["Float"].GetFloat());   //2.7
-printf("%s\n", j["Object"]["String"].GetString()); //Second string
+printf("%i\n", j["Object"]["Int"].Get<int>());                    //321
+printf("%f\n", j["Object"]["Float"].Get<float>());                //2.7
+printf("%s\n", j["Object"]["String"].Get<std::string>().c_str()); //Second string
 ```
 ### Saving
 
