@@ -31,6 +31,7 @@
 #include <map>
 #include <vector>
 #include <initializer_list>
+#include <type_traits>
 #include <cstring>
 #include <cstdint>
 #include <cmath>
@@ -180,7 +181,7 @@ namespace ColumbusJSON
 		typedef std::map<std::basic_string<char>, Value>::const_iterator ValueConstIterator;
 		typedef std::vector<Value>::const_iterator ArrayConstIterator;
 	public:
-		Value() : ValueType(Type::Object) {}
+		Value() : BoolValue(false), IntValue(0), FloatValue(0.0f), ValueType(Type::Object) {}
 		Value(const std::basic_string<char>& Str) : StringValue(Str), BoolValue(false), IntValue(0), FloatValue(0.0f), ValueType(Type::String) {}
 		Value(const std::initializer_list<Value>& Arr) : Array(Arr.begin(), Arr.end()), ValueType(Type::Array) {}
 		Value(const std::vector<Value>& Arr) : Array(Arr), ValueType(Type::Array) {}
@@ -485,6 +486,9 @@ namespace ColumbusJSON
 		void Clear()
 		{
 			StringValue.clear();
+			BoolValue = false;
+			IntValue = 0;
+			FloatValue = 0.0f;
 			Array.clear();
 			Values.clear();
 			ValueType = Type::Object;
@@ -578,27 +582,70 @@ namespace ColumbusJSON
 		{
 			return ValueType == Type::Array;
 		}
-
-		const char* GetString() const
+		/**
+		* @brief Returns string value.
+		* @note If value type is not string, it is converted to a string.
+		*/
+		std::string GetString() const
 		{
-			return StringValue.c_str();
-		}
+			switch (ValueType)
+			{
+			case Value::Type::String: return StringValue;                break;
+			case Value::Type::Bool:   return std::to_string(BoolValue);  break;
+			case Value::Type::Int:    return std::to_string(IntValue);   break;
+			case Value::Type::Float:  return std::to_string(FloatValue); break;
+			}
 
+			return "";
+		}
+		/**
+		* @brief Returns bool value.
+		* @note If value type is not bool(excluding the string), it is converted to a bool.
+		*/
 		bool GetBool() const
 		{
-			return BoolValue;
-		}
+			switch (ValueType)
+			{
+			case Value::Type::Bool:  return BoolValue;        break;
+			case Value::Type::Int:   return (bool)IntValue;   break;
+			case Value::Type::Float: return (bool)FloatValue; break;
+			}
 
+			return false;
+		}
+		/**
+		* @brief Returns int value.
+		* @note If value type is not int(excluding the string), it is converted to an int.
+		*/
 		int GetInt() const
 		{
-			return IntValue;
-		}
+			switch (ValueType)
+			{
+			case Value::Type::Bool:  return (int)BoolValue;  break;
+			case Value::Type::Int:   return IntValue;        break;
+			case Value::Type::Float: return (int)FloatValue; break;
+			}
 
+			return 0;
+		}
+		/**
+		* @brief Returns float value.
+		* @note If value type is not float(excluding the string), it is converted to a float.
+		*/
 		float GetFloat() const
 		{
-			return FloatValue;
-		}
+			switch (ValueType)
+			{
+			case Value::Type::Bool:  return (float)BoolValue; break;
+			case Value::Type::Int:   return (float)IntValue;  break;
+			case Value::Type::Float: return FloatValue;       break;
+			}
 
+			return 0.0f;
+		}
+		/**
+		* @breif Finds value in sub-values.
+		*/
 		bool HasValue(const std::basic_string<char>& Key) const
 		{
 			return Values.find(Key) != Values.end();
@@ -683,6 +730,9 @@ namespace ColumbusJSON
 			return Array[Index];
 		}
 
+		/**
+		* @brief Parses tree in begining of *Val* into std::ostream.
+		*/
 		friend std::ostream& operator<<(std::ostream& Stream, const Value& Val)
 		{
 			static int Iteration = 0;
@@ -748,6 +798,60 @@ namespace ColumbusJSON
 			}
 
 			return Stream;
+		}
+
+		template <typename T, typename Enable = void>
+		struct traits {};
+
+		template <typename T>
+		struct traits<T, typename std::enable_if<
+			std::is_same          <typename std::decay<T>::type, std::basic_string<char>>::value ||
+			std::is_same          <typename std::decay<T>::type, char*>::value ||
+			std::is_integral      <typename std::decay<T>::type>::value ||
+			std::is_floating_point<typename std::decay<T>::type>::value>::type>
+		{ typedef T type; };
+
+		/**
+		* @brief Sets value to string.
+		* @note If value type is not string it is converts to string.
+		* @return The same reference as *Out*.
+		*/
+		std::basic_string<char>& GetValue(std::basic_string<char>& Out) const
+		{
+			switch (ValueType)
+			{
+			case Value::Type::String: Out = StringValue;                break;
+			case Value::Type::Bool:   Out = std::to_string(BoolValue);  break;
+			case Value::Type::Int:    Out = std::to_string(IntValue);   break;
+			case Value::Type::Float:  Out = std::to_string(FloatValue); break;
+			}
+
+			return Out;
+		}
+
+		/**
+		* @brief Sets value to generic value.
+		* @note If value type is not T it is converts to T.
+		* @return The same reference as *Out*.
+		*/
+		template <typename T>
+		typename std::enable_if<std::is_arithmetic<T>::value, T>::type& GetValue(T& Out) const
+		{
+			switch (ValueType)
+			{
+			case Value::Type::Bool:  Out = (T)BoolValue;  break;
+			case Value::Type::Int:   Out = (T)IntValue;   break;
+			case Value::Type::Float: Out = (T)FloatValue; break;
+			}
+
+			return Out;
+		}
+
+		template <typename T, typename = typename traits<T>::type>
+		friend T& operator<<(T& Out, const Value& Val)
+		{
+			Val.GetValue(Out);
+			return Out;
 		}
 
 		~Value() {}
