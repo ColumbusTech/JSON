@@ -9,6 +9,13 @@
 #include <cctype>
 #include <cmath>
 
+enum class Error;
+class Node;
+class JSON;
+
+typedef std::vector<Node> Array_t;
+typedef std::map<std::string, Node> Object_t;
+
 enum class Error
 {
 	None,
@@ -33,8 +40,8 @@ private:
 	};
 
 	std::variant<std::string, int, float, bool, std::nullptr_t> Variant;
-	std::vector<Node> Array;
-	std::map<std::string, Node> Object;
+	Array_t  Array;
+	Object_t Object;
 
 	ValueType Type;
 private:
@@ -57,6 +64,10 @@ private:
 		{
 			(*Position)++;
 			Variant = ExtractString();
+
+			if (**Position != '"') return Error::MissedQuot;
+			(*Position)++;
+
 			Type = ValueType::Variant;
 			return Error::None;
 		}
@@ -132,27 +143,145 @@ private:
 		if (**Position == '{')
 		{
 			(*Position)++;
-			SkipSpace();
-			if (**Position == '}') { Type = ValueType::Object; return Error::None; }
+
+			while (**Position != 0)
+			{
+				SkipSpace();
+				if (**Position == '}') { Type = ValueType::Object; return Error::None; }
+
+				if (**Position == '"')
+				{
+					(*Position)++;
+					std::string Name = ExtractString();
+
+					if (**Position != '"') { Object.clear(); return Error::MissedQuot; }
+					(*Position)++;
+					SkipSpace();
+
+					if (**Position != ':') { Object.clear(); return Error::MissedColon; }
+					(*Position)++;
+					SkipSpace();
+
+					Node New;
+					Error Err = New.Parse(Position);
+					if (Err != Error::None) { Object.clear(); return Err; }
+
+					Type = ValueType::Object;
+					Object[Name] = New;
+
+					SkipSpace();
+
+					if (**Position == '}') { (*Position)++;  return Error::None; }
+					if (**Position != ',') { Object.clear(); return Error::MissedComma; }
+					(*Position)++;
+				}
+			}
+		}
+
+		if (**Position == '[')
+		{
+			(*Position)++;
+
+			while (**Position != 0)
+			{
+				SkipSpace();
+				if (Array.size() == 0 && **Position == ']') { Type == ValueType::Array; return Error::None; }
+
+				Node New;
+				Error Err = New.Parse(Position);
+				if (Err != Error::None) {Array.clear(); return Err; }
+
+				Type = ValueType::Array;
+				Array.push_back(New);
+
+				SkipSpace();
+
+				if (**Position == ']') { (*Position)++; return Error::None; }
+				if (**Position != ',') { Array.clear(); return Error::MissedComma;}
+				(*Position)++;
+			}
 		}
 
 		return Error::None;
 	}
 public:
 	Node() : Type(ValueType::Object) {}
+	Node(std::string    Val) : Variant(Val), Type(ValueType::Variant) {}
+	Node(int            Val) : Variant(Val), Type(ValueType::Variant) {}
+	Node(float          Val) : Variant(Val), Type(ValueType::Variant) {}
+	Node(bool           Val) : Variant(Val), Type(ValueType::Variant) {}
+	Node(std::nullptr_t Val) : Variant(Val), Type(ValueType::Variant) {}
+	Node(const Array_t& Arr) : Array(Arr),   Type(ValueType::Array)   {}
+	Node(const std::initializer_list<Node>& Arr) :
+	     Array(Arr.begin(), Arr.end()), Type(ValueType::Array) {}
 
-	template <typename T>
-	Node& operator=(T Val)
+	Node& operator=(const char* Val)
+	{
+		Variant = (std::string)Val;
+		Type = ValueType::Variant;
+		return *this;
+	}
+
+	Node& operator=(const std::string& Val)
 	{
 		Variant = Val;
 		Type = ValueType::Variant;
 		return *this;
 	}
 
-	template <typename T>
-	const T& Get() const
+	Node& operator=(int Val)
 	{
-		return std::get<T>(Variant);
+		Variant = Val;
+		Type = ValueType::Variant;
+		return *this;
+	}
+
+	Node& operator=(double Val)
+	{
+		Variant = (float)Val;
+		Type = ValueType::Variant;
+		return *this;
+	}
+
+	Node& operator=(bool Val)
+	{
+		Variant = Val;
+		Type = ValueType::Variant;
+		return *this;
+	}
+
+	Node& operator=(std::nullptr_t Val)
+	{
+		Variant = Val;
+		Type = ValueType::Variant;
+		return *this;
+	}
+
+	Node& operator=(const Array_t& Arr)
+	{
+		Array = Arr;
+		Type = ValueType::Array;
+		return *this;
+	}
+
+	Node& operator=(const std::initializer_list<Node>& Arr)
+	{
+		Array.clear();
+		Array.assign(Arr.begin(), Arr.end());
+		Type = ValueType::Array;
+		return *this;
+	}
+
+	template <typename T>
+	const T& Get() const;
+
+	template <typename T>
+	bool Is() const;
+
+	template <typename T>
+	operator const T&() const
+	{
+		return Get<T>();
 	}
 
 	Node& operator[](int Index)
@@ -245,16 +374,40 @@ public:
 			Stream << ']';
 		}
 
-		Stream << std::endl;
+		if (Level == 0) Stream << std::endl;
 		return Stream;
 	}
 };
+
+template <> const std::string&    Node::Get() const { return std::get<std::string>   (Variant); }
+template <> const int&            Node::Get() const { return std::get<int>           (Variant); }
+template <> const float&          Node::Get() const { return std::get<float>         (Variant); }
+template <> const bool&           Node::Get() const { return std::get<bool>          (Variant); }
+template <> const std::nullptr_t& Node::Get() const { return std::get<std::nullptr_t>(Variant); }
+template <> const Object_t&       Node::Get() const { return Object; }
+template <> const Array_t&        Node::Get() const { return Array;  }
+
+template <> bool Node::Is<std::string>()    const { return Type == ValueType::Variant && std::holds_alternative<std::string>   (Variant); }
+template <> bool Node::Is<int>()            const { return Type == ValueType::Variant && std::holds_alternative<int>           (Variant); }
+template <> bool Node::Is<float>()          const { return Type == ValueType::Variant && std::holds_alternative<float>         (Variant); }
+template <> bool Node::Is<bool>()           const { return Type == ValueType::Variant && std::holds_alternative<bool>          (Variant); }
+template <> bool Node::Is<std::nullptr_t>() const { return Type == ValueType::Variant && std::holds_alternative<std::nullptr_t>(Variant); }
+template <> bool Node::Is<Object_t>()       const { return Type == ValueType::Object; }
+template <> bool Node::Is<Array_t> ()       const { return Type == ValueType::Array;  }
 
 class JSON
 {
 private:
 	Node Root;
 public:
+	JSON() = default;
+	JSON(const JSON&) = default;
+	JSON(JSON&&) = default;
+	JSON(std::istream& Stream)
+	{
+		Stream >> Root;
+	}
+
 	Node& operator[](const char* Key)
 	{
 		return Root[Key];
