@@ -410,7 +410,10 @@ namespace columbus_json
 			Stream >> Root;
 		}
 
-		Node& operator[](const char* Key)
+		template <typename T, typename = typename std::enable_if<
+		          std::is_same<typename std::decay<T>::type, std::string>::value ||
+		          std::is_same<typename std::decay<T>::type, char*>::value>::type>
+		Node& operator[](const T& Key)
 		{
 			return Root[Key];
 		}
