@@ -53,19 +53,17 @@ namespace columbus_json
 		void Save(std::ostream& Stream, bool V) const { Stream << (V ? "true" : "false"); }
 		void Save(std::ostream& Stream, std::nullptr_t V) const { Stream << "null"; }
 
-		Error Parse(const char** Position)
-		{
-			auto SkipSpace = [&]() { while (std::isspace(**Position)) (*Position)++; };
-			auto ExtractString = [&]() { std::string S; while (**Position != '"') { S += **Position; (*Position)++; }; return S; };
-			auto ExtractInt = [&]() { int N = 0; while (std::isdigit(**Position)) N = N * 10 + (*(*Position)++ - '0'); return N; };
-			auto ExtractDec = [&]() { double N = 0.0, F = 0.1; while (std::isdigit(**Position)) { N = N + (*(*Position)++ - '0') * F; F *= 0.1; } return N; };
-			
-			SkipSpace();
+		void        SkipSpace    (const char** Position) { while (std::isspace(**Position)) (*Position)++; }
+		std::string ExtractString(const char** Position) { std::string S; while (**Position != '"') { S += **Position; (*Position)++; }; return S; }
+		int         ExtractInt   (const char** Position) { int N = 0; while (std::isdigit(**Position)) N = N * 10 + (*(*Position)++ - '0'); return N; }
+		double      ExtractDec   (const char** Position) { double N = 0.0, F = 0.1; while (std::isdigit(**Position)) { N = N + (*(*Position)++ - '0') * F; F *= 0.1; } return N; }
 
+		Error ParseString(const char** Position)
+		{
 			if (**Position == '"')
 			{
 				(*Position)++;
-				Variant = ExtractString();
+				Variant = ExtractString(Position);
 
 				if (**Position != '"') return Error::MissedQuot;
 				(*Position)++;
@@ -74,14 +72,27 @@ namespace columbus_json
 				return Error::None;
 			}
 
-			if (std::equal(*Position, *Position + 4, "true") || std::equal(*Position, *Position + 5, "false"))
+			return Error::Undefined;
+		}
+
+		Error ParseBool(const char** Position)
+		{
+			bool IsTrue  = std::equal(*Position, *Position + 4,  "true");
+			bool IsFalse = std::equal(*Position, *Position + 5, "false");
+
+			if (IsTrue || IsFalse)
 			{
-				Variant = std::equal(*Position, *Position + 4, "true");
-				*Position += std::equal(*Position, *Position + 4, "true") ? 4 : 5;
+				Variant = IsTrue;
+				*Position += IsTrue ? 4 : 5;
 				Type = ValueType::Variant;
 				return Error::None;
 			}
 
+			return Error::Undefined;
+		}
+
+		Error ParseNull(const char** Position)
+		{
 			if (std::equal(*Position, *Position + 4, "null"))
 			{
 				Variant = nullptr;
@@ -90,12 +101,17 @@ namespace columbus_json
 				return Error::None;
 			}
 
+			return Error::Undefined;
+		}
+
+		Error ParseNumber(const char** Position)
+		{
 			if (**Position == '-' || (**Position >= '0' && **Position <= '9'))
 			{
 				bool Neg = **Position == '-';
 				if (Neg) (*Position)++;
 
-				double Number = (int)ExtractInt();
+				double Number = (int)ExtractInt(Position);
 
 				if (**Position == '.')
 				{
@@ -106,7 +122,7 @@ namespace columbus_json
 						return Error::InvalidNumber;
 					}
 
-					Number += ExtractDec();				
+					Number += ExtractDec(Position);				
 				}
 
 				if (**Position == 'e' || **Position == 'E')
@@ -120,15 +136,14 @@ namespace columbus_json
 						return Error::InvalidNumber;
 					}
 
-					int Exponent = ExtractInt();
+					int Exponent = ExtractInt(Position);
 					Exponent *= ExpNeg ? -1 : 1;
 					Number *= pow(10, Exponent);
 				}
 
 				Number *= Neg ? -1 : 1;
 				
-				double tmp;
-				if (modf(Number, &tmp) == 0)
+				if (round(Number) == Number)
 				{
 					Type = ValueType::Variant;
 					Variant = (int)Number;
@@ -142,27 +157,32 @@ namespace columbus_json
 				return Error::None;
 			}
 
+			return Error::Undefined;
+		}
+
+		Error ParseObject(const char** Position)
+		{
 			if (**Position == '{')
 			{
 				(*Position)++;
 
 				while (**Position != 0)
 				{
-					SkipSpace();
+					SkipSpace(Position);
 					if (**Position == '}') { Type = ValueType::Object; return Error::None; }
 
 					if (**Position == '"')
 					{
 						(*Position)++;
-						std::string Name = ExtractString();
+						std::string Name = ExtractString(Position);
 
 						if (**Position != '"') { Object.clear(); return Error::MissedQuot; }
 						(*Position)++;
-						SkipSpace();
+						SkipSpace(Position);
 
 						if (**Position != ':') { Object.clear(); return Error::MissedColon; }
 						(*Position)++;
-						SkipSpace();
+						SkipSpace(Position);
 
 						Node New;
 						Error Err = New.Parse(Position);
@@ -171,7 +191,7 @@ namespace columbus_json
 						Type = ValueType::Object;
 						Object[Name] = New;
 
-						SkipSpace();
+						SkipSpace(Position);
 
 						if (**Position == '}') { (*Position)++;  return Error::None; }
 						if (**Position != ',') { Object.clear(); return Error::MissedComma; }
@@ -180,13 +200,20 @@ namespace columbus_json
 				}
 			}
 
+			return Error::Undefined;
+		}
+
+		Error ParseArray(const char** Position)
+		{
 			if (**Position == '[')
 			{
 				(*Position)++;
 
+				if (Array.size() == 0) Array.reserve(16);
+
 				while (**Position != 0)
 				{
-					SkipSpace();
+					SkipSpace(Position);
 					if (Array.size() == 0 && **Position == ']') { Type == ValueType::Array; return Error::None; }
 
 					Node New;
@@ -196,13 +223,43 @@ namespace columbus_json
 					Type = ValueType::Array;
 					Array.push_back(New);
 
-					SkipSpace();
+					SkipSpace(Position);
 
 					if (**Position == ']') { (*Position)++; return Error::None; }
 					if (**Position != ',') { Array.clear(); return Error::MissedComma;}
 					(*Position)++;
 				}
 			}
+			
+			return Error::Undefined;
+		}
+
+
+		Error Parse(const char** Position)
+		{
+			SkipSpace(Position);
+
+			Error Err;
+
+			static auto Check = [&]() { return Err != Error::None && Err != Error::Undefined; };
+
+			Err = ParseString(Position);
+			if (Check()) return Err;
+
+			Err = ParseBool(Position);
+			if (Check()) return Err;
+
+			Err = ParseNull(Position);
+			if (Check()) return Err;
+
+			Err = ParseNumber(Position);
+			if (Check()) return Err;
+
+			Err = ParseObject(Position);
+			if (Check()) return Err;
+
+			Err = ParseArray(Position);
+			if (Check()) return Err;
 
 			return Error::None;
 		}
