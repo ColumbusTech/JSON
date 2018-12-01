@@ -129,10 +129,6 @@ j["Object"]["Int"] = 321;
 
 std::ofstream file("save.json");
 file << j;
-
-//You may also save it like this
-//std::ofstream ofs("save.json");
-//ofs << j << std::endl;
 ```
 
 ### And it should be saved like this
