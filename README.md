@@ -1,5 +1,5 @@
 # JSON
-Simple and very fast C++ library for JSON parsing
+Simple and very fast C++17 library for JSON parsing
 
 The master hosted on github: https://github.com/ColumbusUtrigas/JSON
 
