@@ -9,7 +9,7 @@ You need only to include **json.h** in your project and you may use it!
 ```cpp
 #include "json.h"
 
-using namespace ColumbusJSON;
+using namespace columbus_json;
 
 ...
 ```
@@ -23,46 +23,35 @@ doxygen
 
 **Just include json.h in your project and use it**
 
-### Loading
-
-#### Simple loading
+## Loading
 
 ```cpp
-ColumbusJSON::JSON j;
-
-auto Err = j.Load("test.json");
-```
-
-#### Loading with file string
-
-```cpp
-ColumbusJSON::JSON j;
-
-std::ifstream ifs("test.json");
-std::string string = std::string(std::istreambuf_iterator<char>(ifs),
-                                 std::istreambuf_iterator<char>());
-ifs.close();
-
-auto Err = j.Parse(str);
-```
-
-#### Loading with stream
-
-```cpp
-ColumbusJSON::JSON j;
-
-std::ifstream ifs("test.json");
-
 try
 {
-	ifs >> j;
-} catch (ColumbusJSON::Error Err)
+	std::ifstream file("test.json");
+	columbus_json::JSON j(file);
+} catch (columbus_json::Error Err)
 {
-	std::cout << ColumbusJSON::ErrorToString(Err) << std::endl;
+	std::cout << columbus_json::ErrorToString(Err) << std::endl;
 }
 ```
 
-#### So, if you have JSON like this
+### Or
+
+```cpp
+try
+{
+	std::ifstream file("test.json");
+	columbus_json::JSON j;
+
+	file >> j;
+} catch (columbus_json::Error Err)
+{
+	std::cout << columbus_json::ErrorToString(Err) << std::endl;
+}
+```
+
+### So, if you have JSON like this
 
 ```json
 {
@@ -79,69 +68,53 @@ try
 }
 ```
 
-#### You may load it like this
+### You may load it like this
 
 ```cpp
-ColumbusJSON::JSON j;
-auto Err = j.Load("test.json");
+std::ifstream file("test.json");
+columbus_json::JSON j(file);
 
 //JSON parsed and ready to use
 
-int a;
-float b;
-std::string c;
+std::cout << std::boolalpha;
 
-a << j["Int"];    //123
-b << j["Float"];  //3.141592
-c << j["String"]; //First string
-
-j["Int"].Get(a);    //123
-j["Float"].Get(b);  //3.141592
-j["String"].Get(c); //First string
+std::cout << j["Int"].Is<int>() << std::endl;     //true
+std::cout << j["Float"].Is<float>() << std::endl; //true
+std::cout << j["String"].Is<int>() << std::endl;  //false
 
 //Main content
-printf("%i\n", j["Int"].Get<int>());                    //123
-printf("%f\n", j["Float"].Get<float>());                //3.141592
-printf("%s\n", j["String"].Get<std::string>().c_str()); //First string
-
+std::cout << j["Int"].Get<int>() << std::endl;            //123
+std::cout << j["Float"].Get<float>() << std::endl;        //3.141592
+std::cout << j["String"].Get<std::string>() << std::endl; //First string
 
 //Array of five ints
-for (int i = 0; i < j["ArrayOfInts"].ArraySize(); i++)
+for (auto& a : j["Object"]["Array"].Get<columbus_json::Array_t>())
 {
-	printf("%i ", j["ArrayOfInts"][i].Get<int>()); //1..5
+	std::cout << a.Get<int>() << " "; //1..5
 }
-printf("\n");
+std::cout << std::endl;
 
 //And sub-object content
-printf("%i\n", j["Object"]["Int"].Get<int>());                    //321
-printf("%f\n", j["Object"]["Float"].Get<float>());                //2.7
-printf("%s\n", j["Object"]["String"].Get<std::string>().c_str()); //Second string
+std::cout << j["Object"]["Int"].Get<int>() << std::endl;            //321
+std::cout << j["Object"]["Float"].Get<float>() << std::endl;        //2.7
+std::cout << j["Object"]["String"].Get<std::string>() << std::endl; //Second string
 ```
-### Saving
-
-#### Simple saving
+## Saving
 
 ```cpp
-j.Save("save.json");
+std::ofstream file("save.json");
+file << j;
 ```
 
-#### Saving with stream
+### You have this code
 
 ```cpp
-std::ofstream ofs("save.json");
-
-ofs << j << std::endl;
-```
-
-#### You have this code
-
-```cpp
-ColumbusJSON::JSON j;
+columbus_json::JSON j;
 
 j["Int"] = 2;
 j["Bool"] = true;
 j["Null"] = nullptr;
-j["Float"] = 123.321f;
+j["Float"] = 123.321;
 j["String"] = "String";
 j["Array"][0] = 1;
 j["Array"][1] = 2;
@@ -154,14 +127,15 @@ j["Array"][4] = 5;
 
 j["Object"]["Int"] = 321;
 
-j.Save("save.json");
+std::ofstream file("save.json");
+file << j;
 
 //You may also save it like this
 //std::ofstream ofs("save.json");
 //ofs << j << std::endl;
 ```
 
-#### And it should be saved like this
+### And it should be saved like this
 
 ```json
 {
